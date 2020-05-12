@@ -1,0 +1,74 @@
+/*We want to understand more about the movies 
+that families are watching. The following categories 
+are considered family movies: Animation, Children, 
+Classics, Comedy, Family and Music.*/
+
+SELECT 	f.title AS Title, 
+	c.name AS Category, 
+	COUNT(r.rental_id) AS TimesRented
+FROM 	film AS f
+	JOIN	film_category AS fc
+	ON	f.film_id = fc.film_id
+	JOIN	category AS c
+	ON	c.category_id = fc.category_id
+	JOIN	inventory AS i
+	ON	i.film_id = f.film_id
+	JOIN	rental AS r
+	ON	r.inventory_id = i.inventory_id
+WHERE	c.Name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
+GROUP BY 1, 2
+ORDER BY 3 DESC
+
+/*Can you provide a table with the movie titles and 
+divide them into 4 levels (first_quarter, second_quarter, 
+third_quarter, and final_quarter) based on the quartiles 
+(25%, 50%, 75%) of the rental duration for movies across 
+all categories?*/
+
+SELECT  f.title AS Title, c.name AS CategoryName, f.rental_duration AS duration,
+        NTILE (4) OVER (PARTITION BY f.rental_duration) AS Percentile
+FROM    film f
+	JOIN film_category fc
+	ON fc.film_id = f.film_id
+	JOIN category c
+	ON c.category_id = fc.category_id
+WHERE   c.name IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
+GROUP BY 3, 2, 1;
+
+/*Finally, provide a table with the family-friendly 
+film category, each of the quartiles, and the 
+corresponding count of movies within each 
+combination of film category for each corresponding 
+rental duration category. */
+
+WITH rentals AS	(SELECT	f.title, c.name, f.rental_duration,
+			NTILE(4) OVER (ORDER BY f.rental_duration) AS standard_quartile
+		FROM	category c
+			JOIN	film_category fc
+			ON	c.category_id = fc.category_id
+			JOIN	film f				
+			ON	f.film_id = fc.film_id
+			WHERE	c.name IN ('Animation', 'Children', 
+			'Classics', 'Comedy', 'Family', 'Music')
+		)
+SELECT	c.name, standard_quartile, COUNT(*)
+FROM	rentals
+GROUP BY 1, 2
+ORDER BY 1, 2;
+
+
+/* We want to find out how the two stores compare in their count 
+of rental orders during every month for all the years we have data for. */
+
+
+SELECT	Month, Year, Store, COUNT(*)
+FROM	(SELECT	DATE_PART ('month',	r.rental_date) AS Month, 
+		DATE_PART ('year', r.rental_date) AS Year, store.store_id AS Store
+	FROM	rental r
+		JOIN	staff s
+		ON	r.staff_id = s.staff_id
+		JOIN	store
+		ON	s.store_id = store.store_id
+	) AS t1
+GROUP	BY 1, 2, 3
+ORDER	BY 2, 1
